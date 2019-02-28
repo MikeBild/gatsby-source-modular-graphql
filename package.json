@@ -1,6 +1,6 @@
 {
   "name": "gatsby-source-modular-graphql",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "license": "MIT",
   "description": "Gatsby source plugin which adds modularized third-party GraphQL schemas to Gatsby GraphQL with Apollo-Client side execution support.",
   "author": "Mike Bild <mike.bild@gmail.com>",
