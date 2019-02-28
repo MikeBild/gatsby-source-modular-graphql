@@ -1,4 +1,4 @@
-const { join } = require('path');
+const { join, parse } = require('path');
 const copy = require('recursive-copy');
 const {
   makeExecutableSchema,
@@ -6,24 +6,35 @@ const {
   mergeSchemas,
   addSchemaLevelResolveFunction,
 } = require('graphql-tools');
-const { introspectionFromSchema, buildClientSchema } = require('graphql');
 const fetch = require('isomorphic-unfetch');
 const { createHttpLink } = require('apollo-link-http');
 
-exports.onCreateNode = async (
-  { store, actions },
-  { schemaModules = [], path = './' }
+exports.onPreBootstrap = async (
+  { store, actions, reporter },
+  { schemaModules = [], path = './graphql' }
 ) => {
-  const { addThirdPartySchema, createPageDependency, createNode } = actions;
+  const { addThirdPartySchema } = actions;
   const { directory } = store.getState().program;
   const srcDir = join(directory, path);
   const dstDir = join(__dirname, '.cache');
 
   await copy(srcDir, dstDir, { overwrite: true });
 
-  const jsSchemaModules = schemaModules.map(name =>
-    require(`./.cache/${name}`)
+  const jsSchemaModules = await Promise.all(
+    schemaModules.map(name => {
+      try {
+        reporter.success(`Add GraphQL Module ${name}`);
+        return require(`./.cache/${name}`);
+      } catch (e) {
+        const npmSrcDir = parse(require.resolve(name)).dir;
+        const npmDstDir = join(dstDir, name);
+        return copy(npmSrcDir, npmDstDir).then(() =>
+          require(`./.cache/${name}`)
+        );
+      }
+    })
   );
+
   const hasSchema = Boolean(jsSchemaModules.length);
 
   if (!hasSchema) return;
@@ -64,4 +75,6 @@ exports.onCreateNode = async (
   addThirdPartySchema({
     schema: mergeSchemas({ schemas }),
   });
+
+  reporter.success(`GraphQL Modules merged into Gatsby GraphQL`);
 };
